@@ -2339,35 +2339,112 @@ function renderDespesasMes(){
   var mesAtualStr=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
   var despesas=DB.get('despesas',[]);
 
-  // Filtrar apenas despesas do mês atual e futuros (pendentes ou do mês atual)
+  // ── Incluir contas fixas como itens virtuais ──
+  var contasFixas=DB.get('contas_fixas',[]);
+  var pagamentos=DB.get('cf_pagamentos',{});
+  // Gerar itens de contas fixas para mês atual e próximos 2 meses
+  var cfItens=[];
+  for(var mi=0;mi<3;mi++){
+    var d2=new Date(hoje.getFullYear(),hoje.getMonth()+mi,1);
+    var ym2=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0');
+    var pagosMes2=pagamentos[ym2]||{};
+    contasFixas.forEach(function(cf){
+      var dia=cf.dia||10;
+      var dataStr=ym2+'-'+String(dia).padStart(2,'0');
+      var pgInfo=pagosMes2[cf.id];
+      cfItens.push({
+        id:'cf_'+cf.id+'_'+ym2, data:dataStr,
+        descricao:cf.nome, categoria:cf.categoria,
+        valor:cf.valor, conta:cf.conta||'', recorrente:'sim',
+        pago:pgInfo?'sim':'nao',
+        dataPago:pgInfo?pgInfo.dataPago:null,
+        contaPagoNome:null, _isCf:true, _cfId:cf.id, _cfChave:ym2,
+        obs:'Conta fixa'
+      });
+    });
+  }
+
+  // ── Incluir parcelas de empréstimos e financiamentos ──
+  var parcelaItens=[];
+  var emprestimos=DB.get('emprestimos',[]);
+  emprestimos.forEach(function(e){
+    var pagas=e.parcelaPaga||0;
+    if(pagas>=e.parcelas)return;
+    var pmt=calcParcelaPRICE(e.valor,e.taxa,e.parcelas);
+    for(var mi=0;mi<3;mi++){
+      var d2=new Date(hoje.getFullYear(),hoje.getMonth()+mi,1);
+      var ym2=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0');
+      var parcelaNum=pagas+mi+1;
+      if(parcelaNum>e.parcelas)break;
+      var pgKey='emp_'+e.id+'_'+ym2;
+      var pgInfo=(pagamentos[ym2]||{})[pgKey];
+      parcelaItens.push({
+        id:pgKey, data:ym2+'-10',
+        descricao:e.inst+' (Parcela '+parcelaNum+'/'+e.parcelas+')',
+        categoria:'Empréstimo', valor:pmt, conta:e.inst,
+        pago:pgInfo?'sim':'nao', dataPago:pgInfo?pgInfo.dataPago:null,
+        contaPagoNome:null, _isParc:true, _pgKey:pgKey, _ym:ym2, obs:'Empréstimo'
+      });
+    }
+  });
+  var financiamentos=DB.get('financiamentos',[]);
+  financiamentos.forEach(function(f){
+    var pagas=f.parcelaPaga||0;
+    if(pagas>=f.prazo)return;
+    var pv=f.valor-(f.entrada||0);
+    var pmt=f.sistema==='SAC'?(pv/f.prazo)+(calcSaldoFin(f)*(f.taxa/100)):calcParcelaPRICE(pv,f.taxa,f.prazo);
+    for(var mi=0;mi<3;mi++){
+      var d2=new Date(hoje.getFullYear(),hoje.getMonth()+mi,1);
+      var ym2=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0');
+      var parcelaNum=pagas+mi+1;
+      if(parcelaNum>f.prazo)break;
+      var pgKey='fin_'+f.id+'_'+ym2;
+      var pgInfo=(pagamentos[ym2]||{})[pgKey];
+      parcelaItens.push({
+        id:pgKey, data:ym2+'-10',
+        descricao:f.desc+' (Parcela '+parcelaNum+'/'+f.prazo+')',
+        categoria:'Financiamento', valor:pmt, conta:f.inst,
+        pago:pgInfo?'sim':'nao', dataPago:pgInfo?pgInfo.dataPago:null,
+        contaPagoNome:null, _isParc:true, _pgKey:pgKey, _ym:ym2, obs:f.sistema
+      });
+    }
+  });
+
+  // Filtrar despesas avulsas do mês atual e futuros
   var ativas=despesas.filter(function(d){
     var ym=d.data.substring(0,7);
-    var ehPaga=d.pago==='sim';
     var ehMesAtual=ym===mesAtualStr;
     var ehFuturo=ym>mesAtualStr;
-    // Mostrar: futuras, mês atual (pagas e não pagas)
     if(!busca) return ehMesAtual||ehFuturo;
     var matchBusca=d.descricao.toLowerCase().indexOf(busca)>-1||d.categoria.toLowerCase().indexOf(busca)>-1;
     return (ehMesAtual||ehFuturo)&&matchBusca;
   });
 
-  // Agrupar por mês
+  // Merge todos os itens
+  var todosItens=ativas.concat(cfItens).concat(parcelaItens);
+  if(busca) todosItens=todosItens.filter(function(d){
+    return d.descricao.toLowerCase().indexOf(busca)>-1||d.categoria.toLowerCase().indexOf(busca)>-1;
+  });
+
+  // Agrupar por mês — FIX: parsear data sem timezone
   var grupos={};
-  ativas.forEach(function(d){
+  todosItens.forEach(function(d){
     var ym=d.data.substring(0,7);
     if(!grupos[ym])grupos[ym]=[];
     grupos[ym].push(d);
   });
 
   // Summary
-  var totalMes=despesas.filter(function(d){return d.data.startsWith(mesAtualStr);}).reduce(function(s,d){return s+d.valor;},0);
-  var pagoMes=despesas.filter(function(d){return d.data.startsWith(mesAtualStr)&&d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
+  var itensMesAtual=todosItens.filter(function(d){return d.data.substring(0,7)===mesAtualStr;});
+  var totalMes=itensMesAtual.reduce(function(s,d){return s+d.valor;},0);
+  var pagoMes=itensMesAtual.filter(function(d){return d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
   var pendMes=totalMes-pagoMes;
+  var totalFuturo=todosItens.filter(function(d){return d.data.substring(0,7)>mesAtualStr;}).reduce(function(s,d){return s+d.valor;},0);
   document.getElementById('desp-mes-summary').innerHTML=
     '<div class="mod-card"><div class="mod-card-label">Total do Mês</div><div class="mod-card-value" style="color:var(--red)">'+fmt(totalMes)+'</div></div>'+
     '<div class="mod-card"><div class="mod-card-label">Já Pago</div><div class="mod-card-value" style="color:var(--green)">'+fmt(pagoMes)+'</div></div>'+
     '<div class="mod-card"><div class="mod-card-label">A Pagar</div><div class="mod-card-value" style="color:var(--amber)">'+fmt(pendMes)+'</div></div>'+
-    '<div class="mod-card"><div class="mod-card-label">Próximos Meses</div><div class="mod-card-value">'+fmt(ativas.filter(function(d){return d.data.substring(0,7)>mesAtualStr;}).reduce(function(s,d){return s+d.valor;},0))+'</div></div>';
+    '<div class="mod-card"><div class="mod-card-label">Próximos Meses</div><div class="mod-card-value">'+fmt(totalFuturo)+'</div></div>';
 
   var container=document.getElementById('desp-por-mes-container');
   var emptyEl=document.getElementById('desp-mes-empty');
@@ -2381,7 +2458,9 @@ function renderDespesasMes(){
     var pago=itens.filter(function(d){return d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
     var pct=total>0?Math.round((pago/total)*100):0;
     var qtdPago=itens.filter(function(d){return d.pago==='sim';}).length;
-    var dt=new Date(ym+'-01');
+    // Fix timezone: parsear data manualmente para evitar shift de dia
+    var ymParts=ym.split('-');
+    var dt=new Date(parseInt(ymParts[0]),parseInt(ymParts[1])-1,1);
     var nomeMes=dt.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
     var ehAtual=ym===mesAtualStr;
     var ehFuturo=ym>mesAtualStr;
@@ -2424,6 +2503,59 @@ function renderDespesasMes(){
 }
 
 function toggleDespPago(id){
+  // Verificar se é conta fixa (cf_ID_YYYYMM) ou parcela (emp_/fin_)
+  if(String(id).indexOf('cf_')===0){
+    var parts=id.split('_');
+    var cfId=parseInt(parts[1]);
+    var chave=parts[2]+'-'+parts[3];
+    var pags=DB.get('cf_pagamentos',{});
+    if(!pags[chave])pags[chave]={};
+    var cf=DB.get('contas_fixas',[]).find(function(x){return x.id===cfId;});
+    if(!cf)return;
+    if(pags[chave][cfId]){
+      delete pags[chave][cfId];
+      save('cf_pagamentos',pags);
+      toast('Desmarcado.');
+      renderDespesasMes();renderDashboard();
+    } else {
+      _despPagando={id:id,descricao:cf.nome,valor:cf.valor,_isCf:true,_cfId:cfId,_cfChave:chave};
+      var contas=DB.get('contas_banco',[]);
+      var sel=document.getElementById('pgto-desp-conta');
+      sel.innerHTML='<option value="">Sem desconto em conta</option>'+
+        contas.map(function(c){return '<option value="'+c.id+'">'+c.nome+' — Saldo: '+fmt(c.saldo)+'</option>';}).join('');
+      document.getElementById('pgto-desp-nome').textContent=cf.nome;
+      document.getElementById('pgto-desp-valor').textContent=fmt(cf.valor);
+      document.getElementById('pgto-desp-data').value=new Date().toISOString().split('T')[0];
+      openModal('modal-pgto-desp');
+    }
+    return;
+  }
+  if(String(id).indexOf('emp_')===0||String(id).indexOf('fin_')===0){
+    var pags2=DB.get('cf_pagamentos',{});
+    var idParts=id.split('_');
+    var ym2=idParts[2]+'-'+idParts[3];
+    if(!pags2[ym2])pags2[ym2]={};
+    if(pags2[ym2][id]){
+      delete pags2[ym2][id];
+      save('cf_pagamentos',pags2);
+      toast('Desmarcado.');
+      renderDespesasMes();renderDashboard();
+    } else {
+      _despPagando={id:id,descricao:id,valor:0,_isParc:true,_pgKey:id,_ym:ym2};
+      // Find valor from rendered items
+      var el2=document.getElementById('di-'+id);
+      if(el2){var vt=el2.querySelector('.desp-valor');if(vt)_despPagando.valor=parseMoney(vt.textContent.replace('-','').trim());}
+      var contas2=DB.get('contas_banco',[]);
+      var sel2=document.getElementById('pgto-desp-conta');
+      sel2.innerHTML='<option value="">Sem desconto em conta</option>'+
+        contas2.map(function(c){return '<option value="'+c.id+'">'+c.nome+' — Saldo: '+fmt(c.saldo)+'</option>';}).join('');
+      var nomeEl=document.getElementById('pgto-desp-nome');if(nomeEl)nomeEl.textContent=_despPagando.descricao;
+      var valEl=document.getElementById('pgto-desp-valor');if(valEl)valEl.textContent=fmt(_despPagando.valor);
+      document.getElementById('pgto-desp-data').value=new Date().toISOString().split('T')[0];
+      openModal('modal-pgto-desp');
+    }
+    return;
+  }
   id=parseInt(id);
   var despesas=DB.get('despesas',[]);
   var d=despesas.find(function(x){return x.id===id;});
@@ -2468,6 +2600,38 @@ function confirmarPagamentoDespesa(){
   if(!_despPagando)return;
   var contaId=parseInt(document.getElementById('pgto-desp-conta').value)||null;
   var dataPago=document.getElementById('pgto-desp-data').value;
+
+  // Handle contas fixas
+  if(_despPagando._isCf){
+    var pags=DB.get('cf_pagamentos',{});
+    if(!pags[_despPagando._cfChave])pags[_despPagando._cfChave]={};
+    pags[_despPagando._cfChave][_despPagando._cfId]={dataPago:dataPago};
+    save('cf_pagamentos',pags);
+    if(contaId){
+      var contas=DB.get('contas_banco',[]);
+      var conta=contas.find(function(c){return c.id===contaId;});
+      if(conta){conta.saldo=Math.max(0,conta.saldo-_despPagando.valor);save('contas_banco',contas);}
+    }
+    toast('Conta fixa paga! ✅');
+    closeModal('modal-pgto-desp');_despPagando=null;
+    renderDespesasMes();renderDashboard();return;
+  }
+  // Handle parcelas emp/fin
+  if(_despPagando._isParc){
+    var pags2=DB.get('cf_pagamentos',{});
+    if(!pags2[_despPagando._ym])pags2[_despPagando._ym]={};
+    pags2[_despPagando._ym][_despPagando._pgKey]={dataPago:dataPago};
+    save('cf_pagamentos',pags2);
+    if(contaId){
+      var contas2=DB.get('contas_banco',[]);
+      var conta2=contas2.find(function(c){return c.id===contaId;});
+      if(conta2){conta2.saldo=Math.max(0,conta2.saldo-_despPagando.valor);save('contas_banco',contas2);}
+    }
+    toast('Parcela paga! ✅');
+    closeModal('modal-pgto-desp');_despPagando=null;
+    renderDespesasMes();renderDashboard();return;
+  }
+
   var despesas=DB.get('despesas',[]);
   var d=despesas.find(function(x){return x.id===_despPagando.id;});
   if(!d)return;
@@ -2524,7 +2688,8 @@ function renderHistorico(){
     var itens=grupos[ym].sort(function(a,b){return a.data.localeCompare(b.data);});
     var total=itens.reduce(function(s,d){return s+d.valor;},0);
     var pago=itens.filter(function(d){return d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
-    var dt=new Date(ym+'-01');
+    var ymP=ym.split('-');
+    var dt=new Date(parseInt(ymP[0]),parseInt(ymP[1])-1,1);
     var nomeMes=dt.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
     return '<div class="mes-block">'+
       '<div class="mes-header" style="border-bottom-color:var(--text3)">'+
