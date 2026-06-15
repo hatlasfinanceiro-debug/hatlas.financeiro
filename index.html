@@ -174,6 +174,35 @@ tbody td{padding:11px 12px;font-size:13px;color:var(--text)}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @media(max-width:900px){.dash-grid{grid-template-columns:repeat(2,1fr)}.dash-charts{grid-template-columns:1fr}.dash-bottom{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}}
 @media(max-width:500px){.dash-grid{grid-template-columns:1fr 1fr}#main-content{padding:14px}.topbar-username{display:none}.mod-cards{grid-template-columns:1fr 1fr}}
+
+/* ── MÊS BLOCK ── */
+.mes-block{margin-bottom:20px}
+.mes-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;border-bottom:2px solid var(--green)}
+.mes-header-title{font-size:15px;font-weight:700;font-family:var(--font-tight);color:var(--text);text-transform:capitalize}
+.mes-header-stats{display:flex;gap:16px;font-size:12px}
+.mes-stat{display:flex;flex-direction:column;align-items:flex-end}
+.mes-stat-label{color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.mes-stat-value{font-weight:600;font-size:13px}
+.mes-prog{height:4px;background:var(--border);border-radius:0}
+.mes-prog-fill{height:100%;background:var(--green);border-radius:0;transition:width .5s ease}
+.desp-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface);transition:background var(--transition)}
+.desp-item:hover{background:var(--surface2)}
+.desp-item:last-child{border-radius:0 0 var(--radius) var(--radius)}
+.desp-item.paga{opacity:.6}
+.desp-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all var(--transition);font-size:12px;font-weight:700}
+.desp-check:hover{border-color:var(--green)}
+.desp-check.checked{background:var(--green);border-color:var(--green);color:#fff}
+.desp-check.atrasada{border-color:var(--red)}
+.desp-info{flex:1;min-width:0}
+.desp-nome{font-size:13px;font-weight:500;color:var(--text)}
+.desp-det{font-size:11px;color:var(--text3);margin-top:2px}
+.desp-valor{font-size:14px;font-weight:700;font-family:var(--font-tight);color:var(--red);flex-shrink:0}
+.desp-valor.pago{color:var(--green)}
+.desp-actions{display:flex;gap:4px;flex-shrink:0}
+.badge-status{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;margin-left:6px}
+.badge-paga{background:var(--green-pale);color:var(--green)}
+.badge-pend{background:var(--amber-pale);color:var(--amber)}
+.badge-atras{background:var(--red-pale);color:var(--red)}
 </style>
 </head>
 <body>
@@ -273,28 +302,42 @@ tbody td{padding:11px 12px;font-size:13px;color:var(--text)}
   </div>
 
   <div class="page" id="page-despesas">
-    <div style="margin-bottom:16px"><h1 style="font-size:20px;font-weight:700;font-family:var(--font-tight)">Despesas</h1><p style="font-size:13px;color:var(--text3)">Controle seus gastos</p></div>
+    <div style="margin-bottom:16px"><h1 style="font-size:20px;font-weight:700;font-family:var(--font-tight)">Despesas</h1><p style="font-size:13px;color:var(--text3)">Contas a pagar organizadas por mês</p></div>
     <div class="tipo-tabs">
-      <button class="tipo-tab active-desp" id="desp-tab-all" onclick="switchDespTab('all',this)">💸 Todas</button>
-      <button class="tipo-tab" id="desp-tab-fix" onclick="switchDespTab('fix',this)">📌 Fixas / Recorrentes</button>
+      <button class="tipo-tab active-desp" id="desp-tab-mes" onclick="switchDespTab('mes',this)">📅 Por Mês</button>
+      <button class="tipo-tab" id="desp-tab-hist" onclick="switchDespTab('hist',this)">📁 Histórico</button>
+      <button class="tipo-tab" id="desp-tab-fix" onclick="switchDespTab('fix',this)">📌 Fixas</button>
     </div>
-    <div id="desp-panel-all">
-      <div class="mod-cards" id="desp-summary"></div>
+    <!-- PAINEL: POR MÊS -->
+    <div id="desp-panel-mes">
+      <div class="mod-cards" id="desp-mes-summary"></div>
       <div class="module-toolbar">
         <div class="toolbar-left">
-          <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" placeholder="Pesquisar..." id="desp-search" oninput="renderDespesas()"></div>
-          <select class="filter-sel" id="desp-cat" onchange="renderDespesas()"><option value="">Todas categorias</option><option>Alimentação</option><option>Moradia</option><option>Transporte</option><option>Saúde</option><option>Educação</option><option>Lazer</option><option>Assinaturas</option><option>Outros</option></select>
-          <select class="filter-sel" id="desp-mes" onchange="renderDespesas()"><option value="">Todos meses</option><option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option><option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Ago</option><option value="09">Set</option><option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option></select>
+          <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" placeholder="Pesquisar..." id="desp-mes-search" oninput="renderDespesasMes()"></div>
         </div>
         <button class="btn btn-primary" style="background:var(--red)" onclick="openLancModal('desp')">+ Nova Despesa</button>
       </div>
-      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Forma</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="tb-despesas"></tbody></table></div>
-      <div id="desp-empty" class="empty-state" style="display:none"><div class="empty-icon">💸</div><p>Nenhuma despesa encontrada.</p></div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
-        <div class="card"><div class="card-header"><div class="card-title">Por Categoria</div></div><div class="chart-wrap"><canvas id="chart-desp-cat"></canvas></div></div>
-        <div class="card"><div class="card-header"><div class="card-title">Evolução</div></div><div class="chart-wrap"><canvas id="chart-desp-ev"></canvas></div></div>
-      </div>
+      <div id="desp-por-mes-container"></div>
+      <div id="desp-mes-empty" class="empty-state card" style="display:none"><div class="empty-icon">💸</div><p>Nenhuma despesa cadastrada.<br>Clique em <strong>+ Nova Despesa</strong> para começar.</p></div>
     </div>
+
+    <!-- PAINEL: HISTÓRICO (pagas de meses anteriores) -->
+    <div id="desp-panel-hist" style="display:none">
+      <div class="module-toolbar">
+        <div class="toolbar-left">
+          <select class="filter-sel" id="hist-mes" onchange="renderHistorico()"><option value="">Todos meses</option><option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option><option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Ago</option><option value="09">Set</option><option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option></select>
+          <select class="filter-sel" id="hist-ano" onchange="renderHistorico()"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
+        </div>
+      </div>
+      <div id="hist-container"></div>
+      <div id="hist-empty" class="empty-state card" style="display:none"><div class="empty-icon">📁</div><p>Nenhum histórico encontrado.</p></div>
+    </div>
+
+    <!-- canvas ocultos para charts -->
+    <div style="display:none"><canvas id="chart-desp-cat"></canvas><canvas id="chart-desp-ev"></canvas></div>
+    <div id="tb-despesas" style="display:none"></div>
+    <div id="desp-empty" style="display:none"></div>
+    <div id="desp-summary" style="display:none"></div>
     <div id="desp-panel-fix" style="display:none">
       <div class="card" style="margin-bottom:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
@@ -493,6 +536,30 @@ tbody td{padding:11px 12px;font-size:13px;color:var(--text)}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-conta-banco')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarContaBanco()">Salvar Conta</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL: Pagamento rápido de despesa -->
+<div class="modal-overlay" id="modal-pgto-desp">
+  <div class="confirm-box" style="max-width:420px">
+    <h3 style="margin-bottom:6px">✅ Confirmar Pagamento</h3>
+    <div id="pgto-desp-nome" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px"></div>
+    <div style="font-size:20px;font-weight:700;color:var(--red);margin-bottom:16px" id="pgto-desp-valor"></div>
+    <div class="form-group">
+      <label class="form-label">Data do pagamento</label>
+      <input type="date" class="form-input" id="pgto-desp-data">
+    </div>
+    <div class="form-group">
+      <label class="form-label">💳 Descontar de qual conta? (opcional)</label>
+      <select class="form-select" id="pgto-desp-conta">
+        <option value="">Sem desconto em conta</option>
+      </select>
+    </div>
+    <div class="confirm-actions" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pgto-desp')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPagamentoDespesa()">✅ Confirmar</button>
     </div>
   </div>
 </div>
@@ -705,7 +772,7 @@ function navigate(page, btn){
   const renders={
     'dashboard':renderDashboard,
     'receitas':renderReceitas,
-    'despesas':function(){renderDespesas();renderDespCharts();renderContasFixas();},
+    'despesas':function(){switchDespTab('mes',document.getElementById('desp-tab-mes'));},
     'cartoes':renderCartoes,
     'emp':renderEmp,
     'fin':renderFin,
@@ -759,6 +826,8 @@ const CAT_COLORS={'Alimentação':'#E53E3E','Moradia':'#7B2D8B','Transporte':'#D
 
 function setLancTipo(tipo){
   document.getElementById('lanc-tipo').value=tipo;
+  var extraEl=document.getElementById('lanc-desp-extra');
+  if(extraEl)extraEl.style.display=tipo==='desp'?'block':'none';
   const isRec=tipo==='rec';
   document.getElementById('tab-rec').className='tipo-tab'+(isRec?' active-rec':'');
   document.getElementById('tab-desp').className='tipo-tab'+(!isRec?' active-desp':'');
@@ -781,6 +850,13 @@ function openLancModal(tipo,id){
   document.getElementById('lanc-rec').value='nao';
   document.getElementById('lanc-tabs').style.display=id?'none':'flex';
   setLancTipo(tipo);
+  // Show/hide pago section for despesas
+  var extraEl=document.getElementById('lanc-desp-extra');
+  if(extraEl)extraEl.style.display=tipo==='desp'?'block':'none';
+  if(tipo==='desp'){
+    var lp=document.getElementById('lanc-pago');if(lp)lp.value='nao';
+    var cpw=document.getElementById('lanc-conta-pago-wrap');if(cpw)cpw.style.display='none';
+  }
   if(id){
     const col=tipo==='rec'?'receitas':'despesas';
     const item=DB.get(col,[]).find(function(x){return x.id===id;});
@@ -815,13 +891,29 @@ function salvarLanc(){
   if(!valor||valor<=0){toast('Informe o valor','error');return;}
   const col=tipo==='rec'?'receitas':'despesas';
   const list=DB.get(col,[]);
-  const item={id:editId?parseInt(editId):genId(),data:data,descricao:desc,categoria:cat,valor:valor,conta:conta,recorrente:rec,obs:obs,forma:forma};
+  var pagoStatus=tipo==='desp'?(document.getElementById('lanc-pago')?document.getElementById('lanc-pago').value:'nao'):'nao';
+  var contaPagoId=null,contaPagoNome=null;
+  if(tipo==='desp'&&pagoStatus==='sim'){
+    var contaPagoSel=document.getElementById('lanc-conta-pago');
+    if(contaPagoSel&&contaPagoSel.value){
+      contaPagoId=parseInt(contaPagoSel.value);
+      var contasList=DB.get('contas_banco',[]);
+      var contaPagoObj=contasList.find(function(c){return c.id===contaPagoId;});
+      if(contaPagoObj){
+        contaPagoNome=contaPagoObj.nome;
+        contaPagoObj.saldo=Math.max(0,contaPagoObj.saldo-valor);
+        save('contas_banco',contasList);
+      }
+    }
+  }
+  const item={id:editId?parseInt(editId):genId(),data:data,descricao:desc,categoria:cat,valor:valor,conta:conta,recorrente:rec,obs:obs,forma:forma,
+    pago:pagoStatus,contaPagoId:contaPagoId,contaPagoNome:contaPagoNome,dataPago:pagoStatus==='sim'?data:null};
   if(editId){const i=list.findIndex(function(x){return x.id===item.id;});if(i>-1)list[i]=item;else list.unshift(item);}
   else list.unshift(item);
   save(col,list);
   closeModal('modal-lanc');
   toast(editId?'Atualizado!':'Salvo com sucesso!');
-  if(tipo==='rec')renderReceitas(); else { renderDespesas(); renderContasFixas(); }
+  if(tipo==='rec')renderReceitas(); else { renderDespesasMes(); renderContasFixas(); }
   renderDashboard();
 }
 function delLanc(tipo,id,desc){
@@ -2222,6 +2314,254 @@ confirmarPgto = function(){
 };
 
 /* ── NAVIGATE para contas-banco ── */
+
+
+/* ══════════════════════════════════════════════════════
+   DESPESAS POR MÊS — controle de contas a pagar
+══════════════════════════════════════════════════════ */
+
+function switchDespTab(tab, btn){
+  ['desp-panel-mes','desp-panel-hist','desp-panel-fix'].forEach(function(p){
+    var el=document.getElementById(p); if(el)el.style.display='none';
+  });
+  document.querySelectorAll('#page-despesas .tipo-tabs .tipo-tab').forEach(function(b){b.className='tipo-tab';});
+  var panel=document.getElementById('desp-panel-'+tab);
+  if(panel)panel.style.display='block';
+  if(btn)btn.className='tipo-tab active-desp';
+  if(tab==='mes')renderDespesasMes();
+  if(tab==='hist')renderHistorico();
+  if(tab==='fix')renderContasFixas();
+}
+
+function renderDespesasMes(){
+  var busca=(document.getElementById('desp-mes-search')?document.getElementById('desp-mes-search').value:'').toLowerCase();
+  var hoje=new Date();
+  var mesAtualStr=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
+  var despesas=DB.get('despesas',[]);
+
+  // Filtrar apenas despesas do mês atual e futuros (pendentes ou do mês atual)
+  var ativas=despesas.filter(function(d){
+    var ym=d.data.substring(0,7);
+    var ehPaga=d.pago==='sim';
+    var ehMesAtual=ym===mesAtualStr;
+    var ehFuturo=ym>mesAtualStr;
+    // Mostrar: futuras, mês atual (pagas e não pagas)
+    if(!busca) return ehMesAtual||ehFuturo;
+    var matchBusca=d.descricao.toLowerCase().indexOf(busca)>-1||d.categoria.toLowerCase().indexOf(busca)>-1;
+    return (ehMesAtual||ehFuturo)&&matchBusca;
+  });
+
+  // Agrupar por mês
+  var grupos={};
+  ativas.forEach(function(d){
+    var ym=d.data.substring(0,7);
+    if(!grupos[ym])grupos[ym]=[];
+    grupos[ym].push(d);
+  });
+
+  // Summary
+  var totalMes=despesas.filter(function(d){return d.data.startsWith(mesAtualStr);}).reduce(function(s,d){return s+d.valor;},0);
+  var pagoMes=despesas.filter(function(d){return d.data.startsWith(mesAtualStr)&&d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
+  var pendMes=totalMes-pagoMes;
+  document.getElementById('desp-mes-summary').innerHTML=
+    '<div class="mod-card"><div class="mod-card-label">Total do Mês</div><div class="mod-card-value" style="color:var(--red)">'+fmt(totalMes)+'</div></div>'+
+    '<div class="mod-card"><div class="mod-card-label">Já Pago</div><div class="mod-card-value" style="color:var(--green)">'+fmt(pagoMes)+'</div></div>'+
+    '<div class="mod-card"><div class="mod-card-label">A Pagar</div><div class="mod-card-value" style="color:var(--amber)">'+fmt(pendMes)+'</div></div>'+
+    '<div class="mod-card"><div class="mod-card-label">Próximos Meses</div><div class="mod-card-value">'+fmt(ativas.filter(function(d){return d.data.substring(0,7)>mesAtualStr;}).reduce(function(s,d){return s+d.valor;},0))+'</div></div>';
+
+  var container=document.getElementById('desp-por-mes-container');
+  var emptyEl=document.getElementById('desp-mes-empty');
+  var meses=Object.keys(grupos).sort();
+  if(!meses.length){container.innerHTML='';emptyEl.style.display='block';return;}
+  emptyEl.style.display='none';
+
+  container.innerHTML=meses.map(function(ym){
+    var itens=grupos[ym].sort(function(a,b){return a.data.localeCompare(b.data);});
+    var total=itens.reduce(function(s,d){return s+d.valor;},0);
+    var pago=itens.filter(function(d){return d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
+    var pct=total>0?Math.round((pago/total)*100):0;
+    var qtdPago=itens.filter(function(d){return d.pago==='sim';}).length;
+    var dt=new Date(ym+'-01');
+    var nomeMes=dt.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    var ehAtual=ym===mesAtualStr;
+    var ehFuturo=ym>mesAtualStr;
+
+    return '<div class="mes-block">'+
+      '<div class="mes-header" style="border-bottom-color:'+(ehAtual?'var(--green)':ehFuturo?'var(--blue)':'var(--amber)')+'">'+
+        '<div><div class="mes-header-title">'+(ehAtual?'📅 ':ehFuturo?'🔮 ':'')+nomeMes+(ehAtual?' — Mês Atual':ehFuturo?' — Próximo':'')+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+qtdPago+' de '+itens.length+' paga'+(itens.length!==1?'s':'')+'</div></div>'+
+        '<div class="mes-header-stats">'+
+          '<div class="mes-stat"><span class="mes-stat-label">A pagar</span><span class="mes-stat-value" style="color:var(--red)">'+fmt(total-pago)+'</span></div>'+
+          '<div class="mes-stat"><span class="mes-stat-label">Pago</span><span class="mes-stat-value" style="color:var(--green)">'+fmt(pago)+'</span></div>'+
+          '<div class="mes-stat"><span class="mes-stat-label">Total</span><span class="mes-stat-value">'+fmt(total)+'</span></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="mes-prog"><div class="mes-prog-fill" style="width:'+pct+'%;background:'+(ehAtual?'var(--green)':'var(--blue)')+'"></div></div>'+
+      itens.map(function(d){
+        var pg=d.pago==='sim';
+        var hoje2=new Date();
+        var dtDesp=new Date(d.data);
+        var atrasada=!pg&&dtDesp<hoje2&&ym<=mesAtualStr;
+        var badge=pg?'<span class="badge-status badge-paga">✓ Paga</span>':
+                  atrasada?'<span class="badge-status badge-atras">⚠️ Atrasada</span>':
+                  '<span class="badge-status badge-pend">⏳ Pendente</span>';
+        var nomeSafe=d.descricao.replace(/'/g,"\\'");
+        return '<div class="desp-item '+(pg?'paga':'')+'" id="di-'+d.id+'">'+
+          '<div class="desp-check '+(pg?'checked':atrasada?'atrasada':'')+'" data-id="'+d.id+'" onclick="toggleDespPago(this.getAttribute(\'data-id\'))">'+(pg?'✓':'')+'</div>'+
+          '<div class="desp-info">'+
+            '<div class="desp-nome">'+d.descricao+badge+'</div>'+
+            '<div class="desp-det">'+fmtD(d.data)+' · '+d.categoria+(d.conta?' · '+d.conta:'')+(d.contaPagoNome?' · <span style="color:var(--green)">Debitado de: '+d.contaPagoNome+'</span>':'')+(d.obs?' · '+d.obs:'')+'</div>'+
+          '</div>'+
+          '<div class="desp-valor '+(pg?'pago':'')+'">'+(pg?'':'- ')+fmt(d.valor)+'</div>'+
+          '<div class="desp-actions">'+
+            '<button class="btn-icon" onclick="openLancModal(\'desp\','+d.id+')" title="Editar">✏️</button>'+
+            '<button class="btn-icon" onclick="delLanc(\'desp\','+d.id+',\''+nomeSafe+'\')" title="Excluir">🗑️</button>'+
+          '</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+  }).join('');
+}
+
+function toggleDespPago(id){
+  id=parseInt(id);
+  var despesas=DB.get('despesas',[]);
+  var d=despesas.find(function(x){return x.id===id;});
+  if(!d)return;
+
+  if(d.pago==='sim'){
+    // Desmarcar — devolver saldo à conta
+    if(d.contaPagoId){
+      var contas=DB.get('contas_banco',[]);
+      var conta=contas.find(function(c){return c.id===d.contaPagoId;});
+      if(conta){conta.saldo+=d.valor;save('contas_banco',contas);}
+    }
+    d.pago='nao';
+    d.contaPagoId=null;
+    d.contaPagoNome=null;
+    d.dataPago=null;
+    save('despesas',despesas);
+    toast('Marcada como não paga.');
+    renderDespesasMes();
+    renderDashboard();
+  } else {
+    // Abrir modal de pagamento rápido
+    abrirPagamentoDespModal(d);
+  }
+}
+
+/* Modal rápido de pagamento de despesa */
+var _despPagando=null;
+function abrirPagamentoDespModal(d){
+  _despPagando=d;
+  // Preencher contas no selector
+  var contas=DB.get('contas_banco',[]);
+  var sel=document.getElementById('pgto-desp-conta');
+  sel.innerHTML='<option value="">Sem desconto em conta</option>'+
+    contas.map(function(c){return '<option value="'+c.id+'">'+c.nome+' — Saldo: '+fmt(c.saldo)+'</option>';}).join('');
+  document.getElementById('pgto-desp-nome').textContent=d.descricao;
+  document.getElementById('pgto-desp-valor').textContent=fmt(d.valor);
+  document.getElementById('pgto-desp-data').value=new Date().toISOString().split('T')[0];
+  openModal('modal-pgto-desp');
+}
+function confirmarPagamentoDespesa(){
+  if(!_despPagando)return;
+  var contaId=parseInt(document.getElementById('pgto-desp-conta').value)||null;
+  var dataPago=document.getElementById('pgto-desp-data').value;
+  var despesas=DB.get('despesas',[]);
+  var d=despesas.find(function(x){return x.id===_despPagando.id;});
+  if(!d)return;
+  d.pago='sim';
+  d.dataPago=dataPago;
+  if(contaId){
+    var contas=DB.get('contas_banco',[]);
+    var conta=contas.find(function(c){return c.id===contaId;});
+    if(conta){
+      d.contaPagoId=contaId;
+      d.contaPagoNome=conta.nome;
+      conta.saldo=Math.max(0,conta.saldo-d.valor);
+      // Registrar movimentação
+      var mov=DB.get('movimentacoes',[]);
+      mov.unshift({id:genId(),contaId:contaId,data:dataPago,descricao:'Pagamento: '+d.descricao,tipo:'saida',valor:d.valor});
+      save('movimentacoes',mov);
+      save('contas_banco',contas);
+      toast('Pago! Saldo da '+conta.nome+' atualizado.');
+    }
+  } else {
+    toast('Despesa marcada como paga! ✅');
+  }
+  save('despesas',despesas);
+  closeModal('modal-pgto-desp');
+  _despPagando=null;
+  renderDespesasMes();
+  renderDashboard();
+}
+
+/* Histórico */
+function renderHistorico(){
+  var mes=document.getElementById('hist-mes')?document.getElementById('hist-mes').value:'';
+  var ano=document.getElementById('hist-ano')?document.getElementById('hist-ano').value:'2026';
+  var hoje=new Date();
+  var mesAtualStr=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
+  var despesas=DB.get('despesas',[]);
+  // Histórico = pagas de meses anteriores
+  var hist=despesas.filter(function(d){
+    var ym=d.data.substring(0,7);
+    var ehAnterior=ym<mesAtualStr;
+    var matchMes=!mes||d.data.split('-')[1]===mes;
+    var matchAno=d.data.startsWith(ano);
+    return ehAnterior&&matchMes&&matchAno;
+  });
+  var container=document.getElementById('hist-container');
+  var empty=document.getElementById('hist-empty');
+  if(!hist.length){container.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  // Agrupar por mês
+  var grupos={};
+  hist.forEach(function(d){var ym=d.data.substring(0,7);if(!grupos[ym])grupos[ym]=[];grupos[ym].push(d);});
+  var meses=Object.keys(grupos).sort().reverse();
+  container.innerHTML=meses.map(function(ym){
+    var itens=grupos[ym].sort(function(a,b){return a.data.localeCompare(b.data);});
+    var total=itens.reduce(function(s,d){return s+d.valor;},0);
+    var pago=itens.filter(function(d){return d.pago==='sim';}).reduce(function(s,d){return s+d.valor;},0);
+    var dt=new Date(ym+'-01');
+    var nomeMes=dt.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    return '<div class="mes-block">'+
+      '<div class="mes-header" style="border-bottom-color:var(--text3)">'+
+        '<div class="mes-header-title">📁 '+nomeMes+'</div>'+
+        '<div class="mes-header-stats">'+
+          '<div class="mes-stat"><span class="mes-stat-label">Pago</span><span class="mes-stat-value" style="color:var(--green)">'+fmt(pago)+'</span></div>'+
+          '<div class="mes-stat"><span class="mes-stat-label">Total</span><span class="mes-stat-value">'+fmt(total)+'</span></div>'+
+        '</div>'+
+      '</div>'+
+      itens.map(function(d){
+        var pg=d.pago==='sim';
+        return '<div class="desp-item '+(pg?'paga':'')+'"  style="opacity:'+(pg?'.7':'1')+'">'+
+          '<div class="desp-check '+(pg?'checked':'')+'" style="cursor:default">'+(pg?'✓':'✗')+'</div>'+
+          '<div class="desp-info"><div class="desp-nome">'+d.descricao+(pg?'<span class="badge-status badge-paga">✓ Paga</span>':'<span class="badge-status badge-atras">Não paga</span>')+'</div>'+
+          '<div class="desp-det">'+fmtD(d.data)+' · '+d.categoria+(d.contaPagoNome?' · Debitado: '+d.contaPagoNome:'')+'</div></div>'+
+          '<div class="desp-valor '+(pg?'pago':'')+'" style="color:'+(pg?'var(--green)':'var(--text3)')+'">'+fmt(d.valor)+'</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+  }).join('');
+}
+
+/* Toggle lançamento pago no modal */
+function toggleLancPago(){
+  var pago=document.getElementById('lanc-pago').value;
+  document.getElementById('lanc-conta-pago-wrap').style.display=pago==='sim'?'block':'none';
+  if(pago==='sim'){
+    var contas=DB.get('contas_banco',[]);
+    var sel=document.getElementById('lanc-conta-pago');
+    sel.innerHTML='<option value="">Nenhuma (só marcar como pago)</option>'+
+      contas.map(function(c){return '<option value="'+c.id+'">'+c.nome+' — Saldo: '+fmt(c.saldo)+'</option>';}).join('');
+  }
+}
+
+/* OVERRIDE renderDespesas para chamar renderDespesasMes */
+function renderDespesas(){ renderDespesasMes(); }
+function renderDespCharts(){}
 
 </script>
 </body>
