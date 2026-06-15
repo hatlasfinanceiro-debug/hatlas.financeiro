@@ -954,11 +954,23 @@ function renderReceitas(){
   const mes2=new Date().toISOString().substring(0,7);
   const doMes=all.filter(function(r){return r.data.startsWith(mes2);}).reduce(function(s,r){return s+r.valor;},0);
   const recorrentes=all.filter(function(r){return r.recorrente==='sim';}).reduce(function(s,r){return s+r.valor;},0);
+  // Saldo total das contas bancárias
+  var contasBanco=DB.get('contas_banco',[]);
+  var saldoTotal=contasBanco.reduce(function(s,c){return s+c.saldo;},0);
+  // Cards de contas bancárias
+  var contasHtml=contasBanco.length>0?contasBanco.map(function(c){
+    return '<div class="mod-card" style="border-left:3px solid '+c.cor+';cursor:pointer" onclick="navigate(\'contas-banco\')" title="Ver conta">'+
+      '<div class="mod-card-label">'+c.nome+'</div>'+
+      '<div class="mod-card-value" style="color:var(--green)">'+fmt(c.saldo)+'</div>'+
+      '<div class="mod-card-sub">'+c.tipo+'</div>'+
+    '</div>';
+  }).join(''):'<div class="mod-card" style="border:1.5px dashed var(--border2);cursor:pointer" onclick="navigate(\'contas-banco\')"><div class="mod-card-label">Contas Bancárias</div><div class="mod-card-value" style="color:var(--text3);font-size:14px">+ Cadastrar</div><div class="mod-card-sub">Clique para adicionar</div></div>';
+
   document.getElementById('rec-summary').innerHTML=
-    '<div class="mod-card"><div class="mod-card-label">Total Geral</div><div class="mod-card-value" style="color:var(--green)">'+fmt(total)+'</div><div class="mod-card-sub">'+all.length+' lançamentos</div></div>'+
-    '<div class="mod-card"><div class="mod-card-label">Mês Atual</div><div class="mod-card-value" style="color:var(--green)">'+fmt(doMes)+'</div><div class="mod-card-sub">'+all.filter(function(r){return r.data.startsWith(mes2);}).length+' lançamentos</div></div>'+
-    '<div class="mod-card"><div class="mod-card-label">Entradas Fixas</div><div class="mod-card-value" style="color:var(--blue)">'+fmt(recorrentes)+'</div><div class="mod-card-sub">recorrentes/mês</div></div>'+
-    '<div class="mod-card"><div class="mod-card-label">Ticket Médio</div><div class="mod-card-value">'+(all.length?fmt(total/all.length):fmt(0))+'</div><div class="mod-card-sub">por lançamento</div></div>';
+    '<div class="mod-card" style="background:var(--green-pale);border-color:var(--green-pale2)"><div class="mod-card-label">💰 Saldo Total em Contas</div><div class="mod-card-value" style="color:var(--green)">'+fmt(saldoTotal)+'</div><div class="mod-card-sub">'+contasBanco.length+' conta'+(contasBanco.length!==1?'s':'')+'</div></div>'+
+    contasHtml+
+    '<div class="mod-card"><div class="mod-card-label">Receitas do Mês</div><div class="mod-card-value" style="color:var(--green)">'+fmt(doMes)+'</div><div class="mod-card-sub">'+all.filter(function(r){return r.data.startsWith(mes2);}).length+' lançamentos</div></div>'+
+    '<div class="mod-card"><div class="mod-card-label">Entradas Fixas</div><div class="mod-card-value" style="color:var(--blue)">'+fmt(recorrentes)+'</div><div class="mod-card-sub">recorrentes/mês</div></div>';
   const tbody=document.getElementById('tb-receitas');
   const empty=document.getElementById('rec-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
@@ -2596,68 +2608,87 @@ function abrirPagamentoDespModal(d){
   document.getElementById('pgto-desp-data').value=new Date().toISOString().split('T')[0];
   openModal('modal-pgto-desp');
 }
+function descontarContaBanco(contaId, valor, descricao, dataPago){
+  // Desconta da conta e valida saldo
+  // Retorna {ok, mensagem}
+  if(!contaId) return {ok:true};
+  var contas=DB.get('contas_banco',[]);
+  var conta=contas.find(function(c){return c.id===contaId;});
+  if(!conta) return {ok:false,msg:'Conta não encontrada.'};
+  if(conta.saldo < valor){
+    return {ok:false,msg:'Saldo insuficiente! Saldo da '+conta.nome+': '+fmt(conta.saldo)+'. Valor da despesa: '+fmt(valor)+'.'};
+  }
+  conta.saldo=conta.saldo-valor;
+  save('contas_banco',contas);
+  // Registrar movimentação
+  var mov=DB.get('movimentacoes',[]);
+  mov.unshift({id:genId(),contaId:contaId,data:dataPago,descricao:'Pagamento: '+descricao,tipo:'saida',valor:valor});
+  save('movimentacoes',mov);
+  return {ok:true,nome:conta.nome,saldoNovo:conta.saldo};
+}
+
 function confirmarPagamentoDespesa(){
   if(!_despPagando)return;
   var contaId=parseInt(document.getElementById('pgto-desp-conta').value)||null;
   var dataPago=document.getElementById('pgto-desp-data').value;
+  if(!dataPago){toast('Informe a data do pagamento','error');return;}
+  var valor=_despPagando.valor;
+  var desc=_despPagando.descricao;
+
+  // Validar saldo antes de qualquer coisa
+  if(contaId){
+    var contas=DB.get('contas_banco',[]);
+    var contaChk=contas.find(function(c){return c.id===contaId;});
+    if(contaChk && contaChk.saldo < valor){
+      toast('❌ Saldo insuficiente! '+contaChk.nome+': '+fmt(contaChk.saldo)+' — Despesa: '+fmt(valor),'error');
+      return;
+    }
+  }
 
   // Handle contas fixas
   if(_despPagando._isCf){
+    var res=descontarContaBanco(contaId,valor,desc,dataPago);
+    if(!res.ok){toast('❌ '+res.msg,'error');return;}
     var pags=DB.get('cf_pagamentos',{});
     if(!pags[_despPagando._cfChave])pags[_despPagando._cfChave]={};
-    pags[_despPagando._cfChave][_despPagando._cfId]={dataPago:dataPago};
+    pags[_despPagando._cfChave][_despPagando._cfId]={dataPago:dataPago,contaId:contaId};
     save('cf_pagamentos',pags);
-    if(contaId){
-      var contas=DB.get('contas_banco',[]);
-      var conta=contas.find(function(c){return c.id===contaId;});
-      if(conta){conta.saldo=Math.max(0,conta.saldo-_despPagando.valor);save('contas_banco',contas);}
-    }
-    toast('Conta fixa paga! ✅');
+    toast(res.nome?'✅ Pago! Saldo '+res.nome+': '+fmt(res.saldoNovo):'✅ Conta fixa marcada como paga!');
     closeModal('modal-pgto-desp');_despPagando=null;
-    renderDespesasMes();renderDashboard();return;
-  }
-  // Handle parcelas emp/fin
-  if(_despPagando._isParc){
-    var pags2=DB.get('cf_pagamentos',{});
-    if(!pags2[_despPagando._ym])pags2[_despPagando._ym]={};
-    pags2[_despPagando._ym][_despPagando._pgKey]={dataPago:dataPago};
-    save('cf_pagamentos',pags2);
-    if(contaId){
-      var contas2=DB.get('contas_banco',[]);
-      var conta2=contas2.find(function(c){return c.id===contaId;});
-      if(conta2){conta2.saldo=Math.max(0,conta2.saldo-_despPagando.valor);save('contas_banco',contas2);}
-    }
-    toast('Parcela paga! ✅');
-    closeModal('modal-pgto-desp');_despPagando=null;
-    renderDespesasMes();renderDashboard();return;
+    renderDespesasMes();renderReceitas();renderDashboard();return;
   }
 
+  // Handle parcelas emp/fin
+  if(_despPagando._isParc){
+    var res2=descontarContaBanco(contaId,valor,desc,dataPago);
+    if(!res2.ok){toast('❌ '+res2.msg,'error');return;}
+    var pags2=DB.get('cf_pagamentos',{});
+    if(!pags2[_despPagando._ym])pags2[_despPagando._ym]={};
+    pags2[_despPagando._ym][_despPagando._pgKey]={dataPago:dataPago,contaId:contaId};
+    save('cf_pagamentos',pags2);
+    toast(res2.nome?'✅ Pago! Saldo '+res2.nome+': '+fmt(res2.saldoNovo):'✅ Parcela marcada como paga!');
+    closeModal('modal-pgto-desp');_despPagando=null;
+    renderDespesasMes();renderReceitas();renderDashboard();return;
+  }
+
+  // Despesa avulsa normal
+  var res3=descontarContaBanco(contaId,valor,desc,dataPago);
+  if(!res3.ok){toast('❌ '+res3.msg,'error');return;}
   var despesas=DB.get('despesas',[]);
   var d=despesas.find(function(x){return x.id===_despPagando.id;});
-  if(!d)return;
+  if(!d){toast('Despesa não encontrada','error');return;}
   d.pago='sim';
   d.dataPago=dataPago;
-  if(contaId){
-    var contas=DB.get('contas_banco',[]);
-    var conta=contas.find(function(c){return c.id===contaId;});
-    if(conta){
-      d.contaPagoId=contaId;
-      d.contaPagoNome=conta.nome;
-      conta.saldo=Math.max(0,conta.saldo-d.valor);
-      // Registrar movimentação
-      var mov=DB.get('movimentacoes',[]);
-      mov.unshift({id:genId(),contaId:contaId,data:dataPago,descricao:'Pagamento: '+d.descricao,tipo:'saida',valor:d.valor});
-      save('movimentacoes',mov);
-      save('contas_banco',contas);
-      toast('Pago! Saldo da '+conta.nome+' atualizado.');
-    }
-  } else {
-    toast('Despesa marcada como paga! ✅');
+  if(contaId && res3.nome){
+    d.contaPagoId=contaId;
+    d.contaPagoNome=res3.nome;
   }
   save('despesas',despesas);
+  toast(res3.nome?'✅ Pago! Saldo '+res3.nome+': '+fmt(res3.saldoNovo):'✅ Despesa marcada como paga!');
   closeModal('modal-pgto-desp');
   _despPagando=null;
   renderDespesasMes();
+  renderReceitas();
   renderDashboard();
 }
 
@@ -2728,6 +2759,27 @@ function toggleLancPago(){
 function renderDespesas(){ renderDespesasMes(); }
 function renderDespCharts(){}
 
+
+/* ── DEPOSITAR em conta bancária ── */
+function abrirDepositoModal(contaId){
+  var contas=DB.get('contas_banco',[]);
+  var conta=contas.find(function(c){return c.id===contaId;});
+  if(!conta)return;
+  var valor=prompt('Depositar em '+conta.nome+' (saldo atual: '+fmt(conta.saldo)+')\nValor a depositar (R$):');
+  if(!valor)return;
+  var v=parseMoney(valor.replace(',','.'));
+  if(!v||v<=0){toast('Valor inválido','error');return;}
+  conta.saldo+=v;
+  save('contas_banco',contas);
+  // Registrar movimentação
+  var mov=DB.get('movimentacoes',[]);
+  mov.unshift({id:genId(),contaId:contaId,data:new Date().toISOString().split('T')[0],descricao:'Depósito',tipo:'entrada',valor:v});
+  save('movimentacoes',mov);
+  toast('✅ R$ '+fmt(v)+' adicionado à '+conta.nome+'. Novo saldo: '+fmt(conta.saldo));
+  renderContasBanco();
+  renderReceitas();
+  renderDashboard();
+}
 </script>
 </body>
 </html>
